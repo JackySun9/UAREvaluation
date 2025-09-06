@@ -425,7 +425,7 @@ class BrandConciergeTester {
           if (elements.length > 0) {
             for (const element of elements.reverse()) { // Start with most recent
               const text = await element.innerText();
-              if (this.isValidResponse(text)) {
+              if (this.isValidResponse(text, questionText)) {
                 responseText = text;
                 break;
               }
@@ -442,7 +442,7 @@ class BrandConciergeTester {
         try {
           const bodyText = await this.page.innerText('body');
           const potentialResponses = bodyText.split('\n').filter(line => {
-            return this.isValidResponse(line.trim());
+            return this.isValidResponse(line.trim(), questionText);
           });
           
           if (potentialResponses.length > 0) {
@@ -684,7 +684,7 @@ class BrandConciergeTester {
       await page.press(chatInputSelector, 'Enter');
       
       // Capture response with shorter timeout for parallel processing
-      const response = await this.captureResponseParallel(page);
+      const response = await this.captureResponseParallel(page, question.text);
       
       const endTime = Date.now();
       const responseTime = endTime - startTime;
@@ -789,7 +789,7 @@ class BrandConciergeTester {
   /**
    * Optimized response capture for parallel processing
    */
-  async captureResponseParallel(page) {
+  async captureResponseParallel(page, questionText = '') {
     try {
       let responseReady = false;
       let attemptCount = 0;
@@ -844,7 +844,7 @@ class BrandConciergeTester {
       await page.waitForTimeout(2000);
       
       // Extract response text
-      const responseText = await this.extractResponseTextParallel(page);
+      const responseText = await this.extractResponseTextParallel(page, questionText);
       
       return {
         text: responseText,
@@ -860,7 +860,7 @@ class BrandConciergeTester {
   /**
    * Optimized response text extraction for parallel processing (using same logic as sequential)
    */
-  async extractResponseTextParallel(page) {
+  async extractResponseTextParallel(page, questionText = '') {
     try {
       let responseText = '';
       
@@ -884,7 +884,7 @@ class BrandConciergeTester {
           if (elements.length > 0) {
             for (const element of elements.reverse()) { // Start with most recent
               const text = await element.innerText();
-              if (this.isValidResponse(text)) {
+              if (this.isValidResponse(text, questionText)) {
                 responseText = text;
                 break;
               }
@@ -901,7 +901,7 @@ class BrandConciergeTester {
         try {
           const bodyText = await page.innerText('body');
           const potentialResponses = bodyText.split('\n').filter(line => {
-            return this.isValidResponse(line.trim());
+            return this.isValidResponse(line.trim(), questionText);
           });
           
           if (potentialResponses.length > 0) {
@@ -1130,7 +1130,7 @@ class BrandConciergeTester {
   /**
    * Check if text is a valid response (not a loading/generating message)
    */
-  isValidResponse(text) {
+  isValidResponse(text, questionText = '') {
     if (!text || typeof text !== 'string') return false;
     
     const trimmed = text.trim();
@@ -1144,10 +1144,34 @@ class BrandConciergeTester {
     // Must not be UI text
     if (this.isUIText(trimmed)) return false;
     
+    // CRITICAL FIX: Must not be the original question text
+    if (questionText && trimmed.toLowerCase() === questionText.toLowerCase().trim()) {
+      return false;
+    }
+    
+    // Must not start like a question (common pattern for captured questions)
+    if (/^(what|how|which|where|when|why|can|do|does|is|are|i need|i want|i'm looking)/i.test(trimmed)) {
+      return false;
+    }
+    
+    // Must not be privacy/disclaimer/legal text
+    const disclaimerKeywords = [
+      'privacy notice', 'privacy policy', 'terms of service', 'terms and conditions',
+      'by using this', 'consent that any', 'personal information', 'service providers',
+      'please do not enter', 'copyright', 'all rights reserved', 'legal notice'
+    ];
+    if (disclaimerKeywords.some(keyword => trimmed.toLowerCase().includes(keyword))) {
+      return false;
+    }
+    
     // Should contain recommendation language or Adobe mentions
     const hasRecommendationLanguage = /\b(recommend|suggest|perfect|ideal|great|best|try|use|consider|adobe)\b/i.test(trimmed);
     
-    return hasRecommendationLanguage;
+    // Stronger requirement: Must have Adobe AND recommendation language for better filtering
+    const hasAdobe = /\badobe\b/i.test(trimmed);
+    const hasRec = /\b(recommend|suggest|perfect|ideal|great|excellent|choice|try)\b/i.test(trimmed);
+    
+    return hasRecommendationLanguage && (hasAdobe || hasRec);
   }
 
   /**
