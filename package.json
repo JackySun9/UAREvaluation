@@ -1,0 +1,51 @@
+{
+  "name": "adobe-brand-concierge-evaluation",
+  "version": "1.0.0",
+  "description": "Automated evaluation system for Adobe Brand Concierge using Playwright",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js run",
+    "demo": "node demo.js",
+    "demo:fetch": "node demo.js fetch",
+    "demo:questions": "node demo.js questions",
+    "setup": "npx playwright install chromium",
+    "fetch": "node src/index.js fetch",
+    "questions": "node src/index.js questions",
+    "test": "node src/index.js test --limit 5",
+    "test:parallel": "node src/index.js test --limit 10 --parallel",
+    "test:full": "node src/index.js test",
+    "evaluate": "node src/index.js evaluate",
+    "analytics": "node src/index.js analytics",
+    "view": "node view-results.js",
+    "view:detailed": "node view-results.js --detailed",
+    "clean": "rm -rf data/results/* reports/*"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "axios": "^1.6.0",
+    "fs-extra": "^11.1.0",
+    "csv-writer": "^1.6.0",
+    "csv-parser": "^3.0.0",
+    "lodash": "^4.17.21",
+    "chalk": "^4.1.2",
+    "progress": "^2.0.3",
+    "moment": "^2.29.4",
+    "commander": "^9.4.0",
+    "chart.js": "^3.9.1",
+    "chartjs-node-canvas": "^4.1.6",
+    "canvas": "^2.11.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0"
+  },
+  "keywords": [
+    "adobe",
+    "brand-concierge",
+    "evaluation",
+    "playwright",
+    "automation",
+    "testing"
+  ],
+  "author": "Adobe Brand Concierge Evaluation Team",
+  "license": "MIT"
+}
