@@ -13,6 +13,7 @@ A comprehensive automated evaluation system for testing Adobe Brand Concierge us
 - **Rich Visualizations**: 6 different chart types with professional graphics
 - **Interactive Dashboard**: HTML dashboard with embedded charts and metrics
 - **Comprehensive Analytics**: Detailed reports with insights and recommendations
+- **🔍 Low-Score Analysis**: Detailed analysis of poorly performing questions with specific examples and targeted recommendations
 - **Results Viewer**: Easy-to-use results viewing and analysis tools
 - **CLI Interface**: Complete command-line interface with parallel processing support
 
@@ -135,6 +136,98 @@ node src/index.js test --limit 10
 #   - And 32 other products: 1 question each
 ```
 
+## 🔍 Low-Scoring Questions Analysis (NEW!)
+
+The system now provides detailed analysis of poorly performing questions to help identify specific improvement areas.
+
+### **What It Analyzes:**
+- **Questions scoring < 2.5** (low performance threshold)
+- **Questions scoring < 2.0** (critical issues threshold)  
+- **Dimension-specific problems** (relevance, brand loyalty, coverage)
+- **Category patterns** (which product types struggle most)
+- **Question type issues** (which question dimensions fail most)
+
+### **How to Access:**
+
+```bash
+# Basic low-score analysis
+npm run view
+# Shows: low-scoring count, worst examples, specific questions & responses
+
+# Comprehensive analysis with patterns
+npm run view:detailed  
+# Shows: critical issues, patterns by category, targeted recommendations
+```
+
+### **Sample Output:**
+
+```bash
+⚠️ Low-Scoring Questions Analysis:
+   🔍 Found 10 questions below 2.5 (100.0%)
+   🚨 Critical issues: 3 questions below 2.0
+
+📊 Worst Performing Areas:
+   🎯 relevance: 6 low scores (avg: 1.95)
+      Example: "What would you recommend for creative design work?" (Score: 1.8)
+      Response: "For creative design work, Adobe offers several powerful tools..."
+   
+   🏢 brandLoyalty: 3 low scores (avg: 2.00)
+      Example: "I'm looking for the best software for video editing..." (Score: 1.6)
+
+💡 Targeted Improvement Recommendations:
+   [High] Relevance: 6 questions have poor relevance scores
+      → Improve product recommendation accuracy by enhancing knowledge base
+      Impact: Critical for user satisfaction
+```
+
+### **Where Data Is Stored:**
+
+| Location | Contains | Best For |
+|----------|----------|----------|
+| **Console Output** | Formatted analysis | Quick review & actionable insights |
+| **`reports/analytics-report.json`** | Complete raw data | Programmatic access & deep analysis |
+| **`reports/executive-summary-*.txt`** | High-level overview | Management reporting |
+
+### **Detailed Analysis Includes:**
+
+- **🚨 Critical Issues**: Individual questions with scores < 2.0, full responses, dimension breakdowns
+- **📈 Patterns**: Problems by product category, question type, and specific products  
+- **💡 Specific Examples**: Actual questions, AI responses, and detailed scoring reasons
+- **🎯 Targeted Recommendations**: Priority-based improvement suggestions with impact assessment
+
+### **JSON Structure in Analytics Report:**
+
+```javascript
+{
+  "lowScoreAnalysis": {
+    "summary": {
+      "totalLowScoring": 10,
+      "percentageLowScoring": "100.0",
+      "totalCritical": 3
+    },
+    "byDimension": {
+      "relevance": {
+        "count": 6,
+        "worstExamples": [
+          {
+            "questionId": "animate-1", 
+            "question": "What would you recommend for creative design work?",
+            "score": 1.8,
+            "issues": ["Mentions relevant product category", "Shows 1 accuracy indicators"],
+            "response": "Full AI response text..."
+          }
+        ]
+      }
+    },
+    "criticalIssues": [...],  // Questions scoring < 2.0 with full details
+    "patterns": {...},        // Analysis by category, product, question type
+    "recommendations": [...]  // Targeted improvement suggestions
+  }
+}
+```
+
+This analysis helps identify exactly what's not working and provides specific, actionable guidance for improvement.
+
 ## 📊 Output Files
 
 The system generates comprehensive output including data, reports, and visualizations:
@@ -146,10 +239,15 @@ The system generates comprehensive output including data, reports, and visualiza
 - `data/results/evaluated-results.json` - Scored evaluations across all dimensions
 
 ### Reports & Analytics
-- `reports/analytics-report.json` - Comprehensive analytics with insights
+- `reports/analytics-report.json` - **Comprehensive analytics with insights and low-score analysis**
 - `reports/analytics-summary.txt` - Human-readable summary
 - `reports/final-report-[session].json` - Complete session report
 - `reports/executive-summary-[session].txt` - Executive summary for stakeholders
+
+### 🔍 Low-Score Analysis Data
+- **Within `analytics-report.json`**: `lowScoreAnalysis` section with complete analysis
+- **Console Output**: Formatted analysis via `npm run view` and `npm run view:detailed`
+- **Executive Summaries**: High-level insights on performance issues
 
 ### Visualizations
 - `reports/dashboard.html` - **Interactive HTML dashboard with all charts**
@@ -253,15 +351,20 @@ The system now includes comprehensive visualization capabilities:
 
 ### 📱 Viewing Results
 ```bash
-# Open dashboard and view all results
-npm run view
+# View results with low-scoring analysis
+npm run view                 # Basic view with low-score summary & examples
 
-# View detailed analysis with breakdowns
-npm run view:detailed
+# Comprehensive analysis with patterns and recommendations  
+npm run view:detailed        # Full analysis including critical issues & targeted recommendations
 
 # Manually open dashboard in browser
 open reports/dashboard.html
 ```
+
+#### **What You'll See:**
+- **Basic View**: Overall scores, low-scoring questions count, worst examples, targeted recommendations
+- **Detailed View**: Critical issues, patterns by category/question type, comprehensive recommendations
+- **Dashboard**: Interactive charts and visual performance metrics
 
 ## 🔧 Configuration
 
@@ -396,6 +499,18 @@ Processing batch 1/4 (3 questions)
    ⚠️ brandLoyalty: 3.90/5.0 (Target: 4.2) ❌ Gap: -0.3
    ✅ coverage: 3.70/5.0 (Target: 3.8) ❌ Gap: -0.1
 
+⚠️ Low-Scoring Questions Analysis:
+   🔍 Found 15 questions below 2.5 (4.2%)
+   
+📊 Worst Performing Areas:
+   🎯 relevance: 8 low scores (avg: 2.1)
+      Example: "What design tool works best for beginners?" (Score: 1.9)
+   🏢 brandLoyalty: 12 low scores (avg: 2.3)  
+
+💡 Targeted Recommendations:
+   [High] Strengthen brand promotion in responses
+   [Medium] Improve Creative Design category performance
+
 📊 Generated Charts (6):
    📈 Overall performance: ./reports/charts/overall-performance.png
    📈 Category performance: ./reports/charts/category-performance.png  
@@ -413,6 +528,7 @@ Processing batch 1/4 (3 questions)
 - **⚡ Parallel Processing** with multiple browser instances (2-3x faster)
 - **🎯 Smart Distribution** across ALL products instead of just the first one
 - **✅ 100% Automation Success Rate** with Playwright
+- **🔍 Low-Score Analysis** with specific examples and targeted recommendations
 - **✅ 6 Professional Charts** for data visualization
 - **✅ Interactive HTML Dashboard** for stakeholder reports
 - **✅ Multi-dimensional Analysis** with actionable insights
@@ -435,7 +551,8 @@ MIT License - see LICENSE file for details
 # Essential Commands
 npm run demo                 # Demo with 3 questions + full visualization
 npm run test:parallel        # Fast testing with 10 questions (⚡ NEW!)
-npm run view                 # View results and open dashboard
+npm run view                 # View results with low-score analysis + open dashboard
+npm run view:detailed        # Comprehensive analysis with critical issues (🔍 NEW!)
 npm start                    # Full evaluation (360 questions)
 npm test                     # Test with 5 questions (sequential)
 npm run clean                # Clean all results
@@ -464,8 +581,9 @@ node view-results.js                       # Direct results viewer
 # 1. Quick validation
 npm run demo
 
-# 2. View results  
-npm run view
+# 2. View results with low-score analysis 
+npm run view                 # Basic analysis with examples
+npm run view:detailed        # Full analysis with patterns & recommendations
 
 # 3. Fast testing with parallel processing (⚡ NEW!)
 npm run test:parallel
@@ -510,7 +628,8 @@ The new parallel processing provides significant performance improvements:
 For issues and questions:
 1. Check the troubleshooting section
 2. Review debug screenshots in `data/results/debug-screenshots/`
-3. Use `npm run view` to see current results and diagnostics
+3. Use `npm run view:detailed` to see current results, low-score analysis, and diagnostics
 4. Check console logs for detailed error messages  
 5. View the interactive dashboard for visual debugging
-6. Create an issue with system logs and configuration details
+6. Analyze low-scoring questions for specific improvement insights
+7. Create an issue with system logs and configuration details

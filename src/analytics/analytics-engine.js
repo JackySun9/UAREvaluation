@@ -33,6 +33,7 @@ class AnalyticsEngine {
         productAnalysis: this.analyzeByProduct(evaluatedResults),
         performanceMetrics: this.calculatePerformanceMetrics(evaluatedResults),
         targetAchievement: this.analyzeTargetAchievement(evaluatedResults),
+        lowScoreAnalysis: this.analyzeLowScoringQuestions(evaluatedResults),
         insights: this.generateInsights(evaluatedResults),
         recommendations: this.generateRecommendations(evaluatedResults)
       };
@@ -343,6 +344,192 @@ class AnalyticsEngine {
     }
 
     return categoryTargets;
+  }
+
+  /**
+   * Analyze low-scoring questions and answers for improvement insights
+   */
+  analyzeLowScoringQuestions(results) {
+    const validResults = results.filter(r => !r.error && r.evaluation);
+    const lowScoreThreshold = 2.5; // Questions scoring below this threshold
+    const veryLowScoreThreshold = 2.0; // Critical issues
+    
+    // Find low-scoring questions by dimension
+    const lowScoringByDimension = {
+      relevance: validResults.filter(r => r.evaluation.relevance.score < lowScoreThreshold),
+      brandLoyalty: validResults.filter(r => r.evaluation.brandLoyalty.score < lowScoreThreshold),
+      coverage: validResults.filter(r => r.evaluation.coverage.score < lowScoreThreshold),
+      overall: validResults.filter(r => r.evaluation.overallScore < lowScoreThreshold)
+    };
+
+    // Find very low-scoring questions (critical issues)
+    const criticalIssues = validResults.filter(r => r.evaluation.overallScore < veryLowScoreThreshold);
+
+    // Analyze patterns in low-scoring questions
+    const patterns = this.analyzeLowScorePatterns(lowScoringByDimension.overall);
+
+    // Create detailed analysis for each dimension
+    const dimensionAnalysis = {};
+    for (const [dimension, lowResults] of Object.entries(lowScoringByDimension)) {
+      if (dimension === 'overall') continue;
+      
+      dimensionAnalysis[dimension] = {
+        count: lowResults.length,
+        percentage: ((lowResults.length / validResults.length) * 100).toFixed(1),
+        worstExamples: lowResults
+          .sort((a, b) => a.evaluation[dimension].score - b.evaluation[dimension].score)
+          .slice(0, 3)
+          .map(r => ({
+            questionId: r.questionId,
+            question: r.question.substring(0, 100) + (r.question.length > 100 ? '...' : ''),
+            expectedProduct: r.expectedProduct,
+            productCategory: r.productCategory,
+            dimension: r.dimension,
+            score: r.evaluation[dimension].score,
+            issues: r.evaluation[dimension].reasons || [],
+            response: r.response.text.substring(0, 200) + (r.response.text.length > 200 ? '...' : '')
+          })),
+        averageScore: this.calculateMean(lowResults.map(r => r.evaluation[dimension].score))
+      };
+    }
+
+    return {
+      summary: {
+        totalLowScoring: lowScoringByDimension.overall.length,
+        totalCritical: criticalIssues.length,
+        percentageLowScoring: ((lowScoringByDimension.overall.length / validResults.length) * 100).toFixed(1),
+        percentageCritical: ((criticalIssues.length / validResults.length) * 100).toFixed(1),
+        lowScoreThreshold,
+        veryLowScoreThreshold
+      },
+      byDimension: dimensionAnalysis,
+      criticalIssues: criticalIssues.map(r => ({
+        questionId: r.questionId,
+        question: r.question,
+        expectedProduct: r.expectedProduct,
+        productCategory: r.productCategory,
+        dimension: r.dimension,
+        overallScore: r.evaluation.overallScore,
+        scores: {
+          relevance: r.evaluation.relevance.score,
+          brandLoyalty: r.evaluation.brandLoyalty.score,
+          coverage: r.evaluation.coverage.score
+        },
+        response: r.response.text,
+        allIssues: {
+          relevance: r.evaluation.relevance.reasons || [],
+          brandLoyalty: r.evaluation.brandLoyalty.reasons || [],
+          coverage: r.evaluation.coverage.reasons || []
+        }
+      })),
+      patterns: patterns,
+      recommendations: this.generateLowScoreRecommendations(lowScoringByDimension, patterns)
+    };
+  }
+
+  /**
+   * Analyze patterns in low-scoring questions
+   */
+  analyzeLowScorePatterns(lowScoringResults) {
+    const patterns = {
+      byCategory: {},
+      byDimension: {},
+      byProduct: {},
+      commonIssues: []
+    };
+
+    // Analyze by category
+    const categoryGroups = _.groupBy(lowScoringResults, 'productCategory');
+    for (const [category, results] of Object.entries(categoryGroups)) {
+      patterns.byCategory[category] = {
+        count: results.length,
+        averageScore: this.calculateMean(results.map(r => r.evaluation.overallScore)),
+        commonProducts: _.countBy(results, 'expectedProduct')
+      };
+    }
+
+    // Analyze by question dimension
+    const dimensionGroups = _.groupBy(lowScoringResults, 'dimension');
+    for (const [dimension, results] of Object.entries(dimensionGroups)) {
+      patterns.byDimension[dimension] = {
+        count: results.length,
+        averageScore: this.calculateMean(results.map(r => r.evaluation.overallScore))
+      };
+    }
+
+    // Analyze by product
+    const productGroups = _.groupBy(lowScoringResults, 'expectedProduct');
+    for (const [product, results] of Object.entries(productGroups)) {
+      patterns.byProduct[product] = {
+        count: results.length,
+        averageScore: this.calculateMean(results.map(r => r.evaluation.overallScore))
+      };
+    }
+
+    return patterns;
+  }
+
+  /**
+   * Generate specific recommendations for improving low-scoring areas
+   */
+  generateLowScoreRecommendations(lowScoringByDimension, patterns) {
+    const recommendations = [];
+
+    // Relevance recommendations
+    if (lowScoringByDimension.relevance.length > 0) {
+      const relevanceIssues = lowScoringByDimension.relevance.length;
+      recommendations.push({
+        priority: 'High',
+        category: 'Relevance',
+        issue: `${relevanceIssues} questions have poor relevance scores`,
+        recommendation: 'Improve product recommendation accuracy by enhancing the knowledge base with more specific product use cases and features',
+        impact: 'Critical for user satisfaction'
+      });
+    }
+
+    // Brand Loyalty recommendations  
+    if (lowScoringByDimension.brandLoyalty.length > 0) {
+      const loyaltyIssues = lowScoringByDimension.brandLoyalty.length;
+      recommendations.push({
+        priority: 'High',
+        category: 'Brand Loyalty',
+        issue: `${loyaltyIssues} questions show weak brand promotion`,
+        recommendation: 'Strengthen Adobe brand messaging and actively highlight product advantages over competitors',
+        impact: 'Important for brand positioning'
+      });
+    }
+
+    // Coverage recommendations
+    if (lowScoringByDimension.coverage.length > 0) {
+      const coverageIssues = lowScoringByDimension.coverage.length;
+      recommendations.push({
+        priority: 'Medium',
+        category: 'Coverage',
+        issue: `${coverageIssues} questions lack comprehensive information`,
+        recommendation: 'Expand responses to include more complete product information, pricing, and cross-product recommendations',
+        impact: 'Enhances user understanding'
+      });
+    }
+
+    // Pattern-based recommendations
+    if (patterns.byCategory) {
+      const problematicCategories = Object.entries(patterns.byCategory)
+        .filter(([category, data]) => data.count > 2)
+        .sort((a, b) => b[1].count - a[1].count);
+      
+      if (problematicCategories.length > 0) {
+        const [topCategory, data] = problematicCategories[0];
+        recommendations.push({
+          priority: 'Medium',
+          category: 'Category-Specific',
+          issue: `${topCategory} category has ${data.count} low-scoring questions`,
+          recommendation: `Focus on improving knowledge base content and responses specifically for ${topCategory} products`,
+          impact: 'Targeted improvement opportunity'
+        });
+      }
+    }
+
+    return recommendations;
   }
 
   /**

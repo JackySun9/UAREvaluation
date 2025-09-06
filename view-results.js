@@ -63,6 +63,34 @@ async function viewResults() {
           console.log(chalk.gray(`      ${rec.description}`));
         });
       }
+
+      // Show low-scoring questions analysis
+      if (analytics.lowScoreAnalysis) {
+        const lowScore = analytics.lowScoreAnalysis;
+        if (lowScore.summary.totalLowScoring > 0) {
+          console.log(chalk.blue('\n⚠️  Low-Scoring Questions Analysis:'));
+          console.log(chalk.red(`   🔍 Found ${lowScore.summary.totalLowScoring} questions below ${lowScore.summary.lowScoreThreshold} (${lowScore.summary.percentageLowScoring}%)`));
+          
+          if (lowScore.summary.totalCritical > 0) {
+            console.log(chalk.red(`   🚨 Critical issues: ${lowScore.summary.totalCritical} questions below ${lowScore.summary.veryLowScoreThreshold}`));
+          }
+
+          // Show worst examples by dimension
+          console.log(chalk.blue('\n📊 Worst Performing Areas:'));
+          Object.entries(lowScore.byDimension).forEach(([dimension, data]) => {
+            if (data.count > 0) {
+              const emoji = dimension === 'relevance' ? '🎯' : dimension === 'brandLoyalty' ? '🏢' : '📋';
+              console.log(chalk.yellow(`   ${emoji} ${dimension}: ${data.count} low scores (avg: ${data.averageScore.toFixed(2)})`));
+              
+              if (data.worstExamples.length > 0) {
+                const worst = data.worstExamples[0];
+                console.log(chalk.gray(`      Example: "${worst.question}" (Score: ${worst.score})`));
+                console.log(chalk.gray(`      Response: "${worst.response}"`));
+              }
+            }
+          });
+        }
+      }
     }
 
     // List available charts
@@ -153,6 +181,56 @@ async function showDetailedAnalysis() {
       console.log(chalk.gray(`   Average: ${Math.round(rt.average || 0)}ms`));
       console.log(chalk.gray(`   Median: ${Math.round(rt.median || 0)}ms`));
       console.log(chalk.gray(`   Range: ${Math.round(rt.min || 0)}ms - ${Math.round(rt.max || 0)}ms`));
+    }
+
+    // Detailed low-scoring analysis
+    if (analytics.lowScoreAnalysis) {
+      const lowScore = analytics.lowScoreAnalysis;
+      
+      if (lowScore.criticalIssues && lowScore.criticalIssues.length > 0) {
+        console.log(chalk.blue('\n🚨 Critical Issues (Detailed Analysis):'));
+        lowScore.criticalIssues.slice(0, 3).forEach((issue, i) => {
+          console.log(chalk.red(`\n   ${i + 1}. ${issue.expectedProduct} - Overall Score: ${issue.overallScore.toFixed(2)}`));
+          console.log(chalk.yellow(`      Question: "${issue.question.substring(0, 100)}..."`));
+          console.log(chalk.gray(`      Scores: Relevance ${issue.scores.relevance}, Brand Loyalty ${issue.scores.brandLoyalty}, Coverage ${issue.scores.coverage}`));
+          console.log(chalk.gray(`      Response: "${issue.response.substring(0, 150)}..."`));
+        });
+      }
+
+      // Show patterns
+      if (lowScore.patterns) {
+        console.log(chalk.blue('\n📈 Low-Score Patterns:'));
+        
+        if (lowScore.patterns.byCategory && Object.keys(lowScore.patterns.byCategory).length > 0) {
+          console.log(chalk.yellow('   📂 Problematic Categories:'));
+          Object.entries(lowScore.patterns.byCategory)
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 3)
+            .forEach(([category, data]) => {
+              console.log(chalk.gray(`      ${category}: ${data.count} issues (avg: ${data.averageScore.toFixed(2)})`));
+            });
+        }
+
+        if (lowScore.patterns.byDimension && Object.keys(lowScore.patterns.byDimension).length > 0) {
+          console.log(chalk.yellow('   📊 Question Type Issues:'));
+          Object.entries(lowScore.patterns.byDimension)
+            .sort((a, b) => b[1].count - a[1].count)
+            .forEach(([dimension, data]) => {
+              console.log(chalk.gray(`      ${dimension}: ${data.count} issues (avg: ${data.averageScore.toFixed(2)})`));
+            });
+        }
+      }
+
+      // Show specific recommendations for low scores
+      if (lowScore.recommendations && lowScore.recommendations.length > 0) {
+        console.log(chalk.blue('\n💡 Targeted Improvement Recommendations:'));
+        lowScore.recommendations.forEach((rec, i) => {
+          const priorityColor = rec.priority === 'High' ? chalk.red : rec.priority === 'Medium' ? chalk.yellow : chalk.green;
+          console.log(priorityColor(`   [${rec.priority}] ${rec.category}: ${rec.issue}`));
+          console.log(chalk.gray(`      → ${rec.recommendation}`));
+          console.log(chalk.gray(`      Impact: ${rec.impact}`));
+        });
+      }
     }
 
   } catch (error) {
